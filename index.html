@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChessOS</title>
+<meta name="description" content="ChessOS is a tiny 64-bit operating system that does one thing: play chess. It boots straight from a USB stick, CD or VM.">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000;
+    --panel: #0b0b0b;
+    --line: #2a2a2a;
+    --muted: #777;
+    --text: #aaa;
+    --white: #fff;
+    --green: #55ff55;
+    --yellow: #ffff55;
+    --cyan: #55ffff;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+
+  a { color: var(--cyan); }
+  a:hover { color: var(--white); }
+
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  h1, h2, .logo {
+    font-family: "VT323", monospace;
+    font-weight: normal;
+    color: var(--white);
+    margin: 0;
+  }
+
+  h2 { font-size: 36px; margin-bottom: 20px; }
+  h2::before { content: "> "; color: var(--green); }
+  h3 { color: var(--white); font-size: 16px; margin: 0 0 4px; }
+
+  section { padding: 56px 0; border-top: 1px dashed var(--line); }
+
+  /* Header */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.92);
+    border-bottom: 1px solid var(--line);
+  }
+  header .page {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+  }
+  .logo { font-size: 28px; text-decoration: none; }
+  nav a { color: var(--text); text-decoration: none; margin-left: 18px; font-size: 14px; }
+  nav a:hover { color: var(--white); }
+
+  /* Hero */
+  .hero {
+    padding: 64px 0 56px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+  .hero h1 { font-size: 96px; line-height: 0.9; margin-bottom: 12px; }
+  .tagline { font-size: 18px; margin: 0 0 28px; }
+  .tagline strong { color: var(--yellow); font-weight: 600; }
+
+  .buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+  .button {
+    padding: 10px 18px;
+    border: 2px solid var(--white);
+    background: var(--white);
+    color: var(--bg);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .button:hover { background: var(--yellow); border-color: var(--yellow); color: var(--bg); }
+  .button.outline { background: transparent; color: var(--white); }
+  .button.outline:hover { color: var(--bg); }
+
+  .boot-screen {
+    margin: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 20px;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: auto;
+  }
+  .boot-screen .title { color: var(--white); }
+  .boot-screen .ok { color: var(--green); }
+  .cursor {
+    display: inline-block;
+    width: 9px;
+    height: 16px;
+    background: var(--green);
+    vertical-align: text-bottom;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+
+  .slideshow { position: relative; }
+  .slides {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .slides img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .slides img.active { opacity: 1; }
+
+  .arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--white);
+    border: 1px solid var(--line);
+    font: 28px/1 "VT323", monospace;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+  }
+  .arrow:hover { color: var(--yellow); border-color: var(--yellow); }
+  .arrow.prev { left: 8px; }
+  .arrow.next { right: 8px; }
+
+  .dots { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
+  .dot {
+    width: 12px;
+    height: 12px;
+    padding: 0;
+    border: 1px solid var(--muted);
+    background: transparent;
+    cursor: pointer;
+  }
+  .dot.active { background: var(--green); border-color: var(--green); }
+
+  /* Features */
+  .lead { max-width: 660px; margin: 0 0 28px; }
+  .features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .feature { border: 1px solid var(--line); background: var(--panel); padding: 18px; }
+  .feature p { margin: 0; font-size: 15px; }
+  .feature .icon {
+    font: 26px/1 "VT323", monospace;
+    color: var(--yellow);
+    margin-bottom: 10px;
+  }
+  code { color: var(--white); }
+
+  /* Download */
+  .download { text-align: center; }
+  .download h2::before { content: none; }
+  .download p { margin: 0 0 24px; }
+  .download .buttons { justify-content: center; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 28px 0 40px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  footer .page { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  /* Tablet and phone */
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; padding-top: 40px; }
+    .features { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    .hero h1 { font-size: 64px; }
+    .tagline { font-size: 16px; }
+    .boot-screen { font-size: 10px; padding: 12px; }
+    .features { grid-template-columns: 1fr; }
+    nav a { margin-left: 12px; }
+    nav a.hide-on-phone { display: none; }
+    section { padding: 40px 0; }
+    .arrow { width: 36px; height: 36px; font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="page">
+    <a class="logo" href="#">CHESSOS</a>
+    <nav>
+      <a href="#screenshots" class="hide-on-phone">Screenshots</a>
+      <a href="#features">Features</a>
+      <a href="#download">Download</a>
+      <a href="https://github.com/O-Ayyad/chessos">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="hero">
+    <div>
+      <h1>CHESSOS</h1>
+      <p class="tagline">A tiny 64-bit operating system that does <strong>one thing</strong>: play chess.<br>
+        No Windows, no Linux, no bloat.</p>
+      <div class="buttons">
+        <a class="button" href="https://github.com/O-Ayyad/ChessOS/releases">Download</a>
+        <a class="button outline" href="https://github.com/O-Ayyad/chessos">View on GitHub</a>
+      </div>
+    </div>
+
+<pre class="boot-screen" aria-label="ChessOS start-up screen"><span class="title">CHESSOS BIOS v3.0</span>
+
+CPU ........ x86-64, 64-bit long mode, SSE2
+MEMORY ..... 105153K free
+VIDEO ...... 1024x768x32
+INPUT ...... PS/2 keyboard + mouse
+SOUND ...... AC'97
+
+<span class="title">LOADING ASSETS</span>
+[████████████████████] 100%
+<span class="ok">ChessOS ready.</span>
+
+PRESS ANY KEY TO CONTINUE <span class="cursor"></span></pre>
+  </div>
+
+  <section id="screenshots">
+    <h2>Screenshots</h2>
+    <div class="slideshow">
+      <div class="slides" id="slides">
+        <img src="images/1.png" alt="ChessOS screenshot 1" class="active">
+        <img src="images/2.png" alt="ChessOS screenshot 2">
+        <img src="images/3.png" alt="ChessOS screenshot 3">
+        <img src="images/4.png" alt="ChessOS screenshot 4">
+        <img src="images/5.png" alt="ChessOS screenshot 5">
+        <button class="arrow prev" aria-label="Previous screenshot">&lt;</button>
+        <button class="arrow next" aria-label="Next screenshot">&gt;</button>
+      </div>
+      <div class="dots" id="dots"></div>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>Features</h2>
+    <p class="lead">Everything is written from scratch: the boot loader, the kernel, the graphics,
+      the sound driver, the music player and the chess engine.</p>
+    <div class="features">
+      <div class="feature">
+        <div class="icon">[BOOT]</div>
+        <h3>Its own boot loader</h3>
+        <p>Two small assembly programs take the PC from the BIOS to 64-bit mode and load the kernel.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">[3D]</div>
+        <h3>8 ways to see the board</h3>
+        <p>Four views from above and four from the corners.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">[AI]</div>
+        <h3>A real chess engine</h3>
+        <p>Alpha-beta search with a hash table and tuned evaluation. The strongest opponents approximately play at 2750 Elo.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">[:-)]</div>
+        <h3>Opponents with faces</h3>
+        <p>22 characters from 200 to 2750 Elo. They greet you, taunt you, panic when they're getting mated, and laugh when they win.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">[&#9835;]</div>
+        <h3>Music</h3>
+        <p>A built-in MIDI synthesizer plays music through AC'97 or the PC speaker.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">[&gt;_]</div>
+        <h3>Mouse or keyboard</h3>
+        <p>Click to move, or type <code>e2e4</code>, <code>Nf3</code> or <code>/move e8b</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="download" class="download">
+    <h2>Get ChessOS</h2>
+    <p>This runs nativley on Windows without a Virtual machine. If you would like to run ChessOS as an operating system, check it out on github.</p>
+    <div class="buttons">
+      <a class="button" href="https://github.com/O-Ayyad/ChessOS/releases">Download</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="page">
+    <span>ChessOS</span>
+    <a href="https://github.com/O-Ayyad/chessos">github.com/O-Ayyad/chessos</a>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var slides = document.querySelectorAll("#slides img");
+    var dotsBox = document.getElementById("dots");
+    var current = 0;
+
+    slides.forEach(function (_, i) {
+      var dot = document.createElement("button");
+      dot.className = "dot" + (i === 0 ? " active" : "");
+      dot.setAttribute("aria-label", "Show screenshot " + (i + 1));
+      dot.addEventListener("click", function () { show(i); });
+      dotsBox.appendChild(dot);
+    });
+    var dots = dotsBox.querySelectorAll(".dot");
+
+    function show(i) {
+      slides[current].classList.remove("active");
+      dots[current].classList.remove("active");
+      current = (i + slides.length) % slides.length;
+      slides[current].classList.add("active");
+      dots[current].classList.add("active");
+    }
+
+    document.querySelector(".arrow.prev").addEventListener("click", function () { show(current - 1); });
+    document.querySelector(".arrow.next").addEventListener("click", function () { show(current + 1); });
+
+    // Clicking the image itself goes to the next screenshot
+    slides.forEach(function (img) {
+      img.addEventListener("click", function () { show(current + 1); });
+    });
+
+    // Arrow keys
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") show(current - 1);
+      if (e.key === "ArrowRight") show(current + 1);
+    });
+
+    // Swipe on phones
+    var startX = null;
+    var box = document.getElementById("slides");
+    box.addEventListener("touchstart", function (e) { startX = e.touches[0].clientX; }, { passive: true });
+    box.addEventListener("touchend", function (e) {
+      if (startX === null) return;
+      var dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 40) show(dx < 0 ? current + 1 : current - 1);
+      startX = null;
+    });
+  })();
+</script>
+
+</body>
+</html>
